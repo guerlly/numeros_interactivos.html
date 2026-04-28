@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aventura de Números - Aprendizaje Infantil</title>
+    
+    <!-- PWA Meta Tags para Android -->
+    <meta name="theme-color" content="#f0fdf4">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background-color: #f0fdf4;
+            overflow: hidden; 
+            user-select: none;
+            touch-action: manipulation;
+        }
+        .number-bubble {
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .number-bubble:active {
+            transform: scale(0.9);
+        }
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            animation: fall 3s linear forwards;
+            z-index: 50;
+        }
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(360deg); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        .animate-shake {
+            animation: shake 0.4s ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Pantalla de Inicio -->
+    <div id="screen-start" class="text-center w-full max-w-lg">
+        <h1 class="text-5xl md:text-7xl font-bold text-green-600 mb-8 floating">¡Aventura Numérica! ??</h1>
+        <p class="mb-8 text-xl text-gray-600">¡Escucha y aprende los números!</p>
+        <div class="flex flex-col gap-6 justify-center">
+            <button onclick="startLearning()" class="bg-yellow-400 active:bg-yellow-500 text-white font-bold py-6 px-10 rounded-3xl text-3xl shadow-xl border-b-8 border-yellow-600 transition-all flex items-center justify-center gap-3">
+                <span>Aprender</span> ??
+            </button>
+            <button onclick="startGame()" class="bg-blue-400 active:bg-blue-500 text-white font-bold py-6 px-10 rounded-3xl text-3xl shadow-xl border-b-8 border-blue-600 transition-all flex items-center justify-center gap-3">
+                <span>Jugar</span> ??
+            </button>
+        </div>
+    </div>
+
+    <!-- Pantalla de Aprendizaje -->
+    <div id="screen-learn" class="hidden w-full max-w-4xl text-center">
+        <div class="bg-white p-6 md:p-8 rounded-3xl shadow-2xl border-4 border-green-200">
+            <h2 class="text-2xl md:text-3xl text-gray-600 mb-4">Estamos viendo el...</h2>
+            <div id="learn-display" onclick="speakNumber(currentNum)" class="text-8xl md:text-9xl font-bold text-orange-500 my-8 animate-bounce cursor-pointer">0</div>
+            <p class="text-gray-400 mb-6 text-sm">¡Toca el número para escucharlo!</p>
+            <div class="flex justify-between items-center px-2">
+                <button onclick="prevNum()" class="bg-gray-200 active:bg-gray-300 p-5 rounded-full text-4xl shadow-md">??</button>
+                <div id="learn-dots" class="flex flex-wrap justify-center gap-2 max-w-[200px] md:max-w-md min-h-[80px]"></div>
+                <button onclick="nextNum()" class="bg-gray-200 active:bg-gray-300 p-5 rounded-full text-4xl shadow-md">??</button>
+            </div>
+        </div>
+        <button onclick="showStart()" class="mt-8 bg-red-400 text-white px-10 py-4 rounded-full font-bold text-xl shadow-lg">Volver</button>
+    </div>
+
+    <!-- Pantalla de Juego -->
+    <div id="screen-game" class="hidden w-full max-w-4xl text-center">
+        <div class="bg-white p-6 rounded-3xl shadow-2xl relative overflow-hidden">
+            <div class="flex justify-between mb-4 text-xl font-bold">
+                <span class="text-green-500 flex items-center gap-2">? <span id="game-hits">0</span></span>
+                <span class="text-red-500 flex items-center gap-2">? <span id="game-misses">0</span></span>
+            </div>
+            <h2 class="text-3xl font-bold text-purple-600 mb-4">¿Dónde está el...?</h2>
+            <div id="voice-trigger" onclick="speakNumber(currentTarget)" class="inline-block bg-yellow-100 p-5 rounded-2xl cursor-pointer mb-6 active:bg-yellow-200">
+                <span id="target-number-text" class="text-6xl font-bold text-black">?</span>
+                <p class="text-xs text-gray-500 mt-2">?? Tocar para repetir</p>
+            </div>
+            <div id="game-options" class="grid grid-cols-2 gap-4"></div>
+        </div>
+    </div>
+
+    <!-- Pantalla de Resultados -->
+    <div id="screen-results" class="hidden text-center w-full max-w-md">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl border-8 border-yellow-400">
+            <h2 class="text-3xl font-bold mb-4">¡Terminamos! ??</h2>
+            <div id="result-stars" class="text-6xl mb-6">??????</div>
+            <div class="space-y-4 text-xl text-left">
+                <p class="flex justify-between"><span>? Correctos:</span> <span id="final-hits" class="font-bold text-green-600 text-2xl">0</span></p>
+                <p class="flex justify-between"><span>? Por mejorar:</span> <span id="final-misses" class="font-bold text-red-600 text-2xl">0</span></p>
+            </div>
+            <button onclick="showStart()" class="mt-8 w-full bg-green-500 text-white py-4 rounded-3xl text-2xl font-bold shadow-lg active:scale-95 transition-transform">¡Otra vez!</button>
+        </div>
+    </div>
+
+    <script>
+        let currentNum = 0;
+        let currentTarget = 0;
+        let hits = 0;
+        let misses = 0;
+        let gameRounds = 0;
+        const MAX_ROUNDS = 10;
+
+        const synth = window.speechSynthesis;
+        
+        // Manejo de voces más robusto
+        function speakNumber(n) {
+            if (synth.speaking) synth.cancel();
+            const utter = new SpeechSynthesisUtterance(n.toString());
+            utter.lang = 'es-ES';
+            utter.rate = 0.8;
+            utter.pitch = 1.1;
+            synth.speak(utter);
+        }
+
+        function speakText(text) {
+            if (synth.speaking) synth.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'es-ES';
+            synth.speak(utter);
+        }
+
+        function hideAll() {
+            document.getElementById('screen-start').classList.add('hidden');
+            document.getElementById('screen-learn').classList.add('hidden');
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('screen-results').classList.add('hidden');
+        }
+
+        function showStart() {
+            hideAll();
+            document.getElementById('screen-start').classList.remove('hidden');
+        }
+
+        function startLearning() {
+            hideAll();
+            currentNum = 0;
+            updateLearnDisplay();
+            document.getElementById('screen-learn').classList.remove('hidden');
+            speakText("¡Vamos a aprender!");
+            setTimeout(() => speakNumber(currentNum), 1000);
+        }
+
+        function updateLearnDisplay() {
+            const display = document.getElementById('learn-display');
+            const dotsContainer = document.getElementById('learn-dots');
+            display.innerText = currentNum;
+            dotsContainer.innerHTML = '';
+            
+            const colors = ['#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6'];
+            display.style.color = colors[currentNum % colors.length];
+
+            for (let i = 0; i < currentNum; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'w-4 h-4 rounded-full bg-orange-400';
+                dotsContainer.appendChild(dot);
+            }
+        }
+
+        function nextNum() {
+            if (currentNum < 30) {
+                currentNum++;
+                updateLearnDisplay();
+                speakNumber(currentNum);
+            }
+        }
+
+        function prevNum() {
+            if (currentNum > 0) {
+                currentNum--;
+                updateLearnDisplay();
+                speakNumber(currentNum);
+            }
+        }
+
+        function startGame() {
+            hideAll();
+            hits = 0;
+            misses = 0;
+            gameRounds = 0;
+            updateGameStats();
+            nextGameRound();
+            document.getElementById('screen-game').classList.remove('hidden');
+            speakText("¿Dónde está el número?");
+        }
+
+        function updateGameStats() {
+            document.getElementById('game-hits').innerText = hits;
+            document.getElementById('game-misses').innerText = misses;
+        }
+
+        function nextGameRound() {
+            if (gameRounds >= MAX_ROUNDS) {
+                showResults();
+                return;
+            }
+
+            currentTarget = Math.floor(Math.random() * 31);
+            document.getElementById('target-number-text').innerText = currentTarget;
+            setTimeout(() => speakNumber(currentTarget), 600);
+
+            let options = [currentTarget];
+            while (options.length < 4) {
+                let randomNum = Math.floor(Math.random() * 31);
+                if (!options.includes(randomNum)) options.push(randomNum);
+            }
+            options.sort(() => Math.random() - 0.5);
+
+            const container = document.getElementById('game-options');
+            container.innerHTML = '';
+            
+            options.forEach(num => {
+                const btn = document.createElement('button');
+                btn.className = 'number-bubble bg-white border-4 border-gray-100 h-28 text-5xl font-bold rounded-3xl shadow-lg active:bg-blue-50 transition-all';
+                btn.innerText = num;
+                btn.onclick = () => checkAnswer(num, currentTarget, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selected, correct, element) {
+            gameRounds++;
+            const buttons = document.querySelectorAll('.number-bubble');
+            buttons.forEach(b => b.onclick = null);
+
+            if (selected === correct) {
+                hits++;
+                element.classList.add('bg-green-200', 'border-green-500');
+                speakText("¡Bien!");
+                createConfetti();
+            } else {
+                misses++;
+                element.classList.add('bg-red-200', 'border-red-500', 'animate-shake');
+                speakText("Ese no");
+            }
+            
+            updateGameStats();
+            setTimeout(nextGameRound, 1200);
+        }
+
+        function createConfetti() {
+            for (let i = 0; i < 20; i++) {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.style.left = Math.random() * 100 + 'vw';
+                c.style.backgroundColor = `hsl(${Math.random() * 360}, 70%, 50%)`;
+                c.style.width = '10px';
+                c.style.height = '10px';
+                document.body.appendChild(c);
+                setTimeout(() => c.remove(), 2500);
+            }
+        }
+
+        function showResults() {
+            hideAll();
+            document.getElementById('final-hits').innerText = hits;
+            document.getElementById('final-misses').innerText = misses;
+            
+            const starContainer = document.getElementById('result-stars');
+            if (hits >= 9) { starContainer.innerText = "??????"; speakText("¡Excelente!"); }
+            else if (hits >= 6) { starContainer.innerText = "????"; speakText("¡Muy bien!"); }
+            else { starContainer.innerText = "??"; speakText("¡Sigue practicando!"); }
+            
+            document.getElementById('screen-results').classList.remove('hidden');
+        }
+
+        document.addEventListener('contextmenu', e => e.preventDefault());
+    </script>
+</body>
+</html>
